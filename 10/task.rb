@@ -2,7 +2,7 @@ input = File.open("input.txt").readlines
 
 register_x = 1
 cycle = 0
-cycles = [1,1,1]
+cycles = [1, 1, 1]
 input.each do |line|
   line.strip!
   instruction, value = line.split(" ")
@@ -39,4 +39,3 @@ cycles.each.with_index do |regx_val, index|
 
   str += (regx_val..regx_val + 2).include?(pos + 1) ? "#" : "."
 end
-

@@ -24,5 +24,5 @@ input.each_char.with_index do |char, index|
   next if res_task1.nil? || res_task2.nil?
 end
 # add 1 to result because indexes start at 0
-puts res_task1 + 1 
+puts res_task1 + 1
 puts res_task2 + 1
