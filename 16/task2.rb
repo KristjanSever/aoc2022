@@ -22,7 +22,7 @@ $cache = {}
 
 start = graph["AA"]
 # important is just nodes which have flow
-important = graph.reject { |_, e| e.flow_rate.zero?}
+important = graph.reject { |_, e| e.flow_rate.zero? }
 important["AA"] = start # add first node as well because its where we start
 
 def bfs(start, graph, important)
@@ -55,68 +55,17 @@ important.each do |_, v|
   bfs(v, graph, important)
 end
 
-
-def params_to_s(cur_valve, minutes, cur_released, opened_valves)
-  "#{cur_valve.name}::#{minutes}::#{opened_valves.join(",")}"
-end
-
-def find_most_pressure(cur_node, remaining_minutes, cur_released, opened_valves, graph, go_sloncek)
-  cache_id = params_to_s(cur_node, remaining_minutes, cur_released, opened_valves)
-  return $cache[cache_id] if $cache[cache_id]
-
-  binding.irb if remaining_minutes.negative? # just checking, never stops here
-  return cur_released if remaining_minutes <= 0
-
-  max = -Float::INFINITY
-
-  cur_node.important_neighbours.each do |next_node|
-    next if next_node == "AA"
-
-    weight = next_node[1]
-    next_node = graph[next_node[0]]
-    # open cur valve path if enough time and not opened yet
-    if !opened_valves.include?(next_node.name) && remaining_minutes - weight - 1 >= 0
-
-      val = cur_released + (remaining_minutes - weight - 1) * next_node.flow_rate
-      opened = find_most_pressure(next_node,
-                                  remaining_minutes - weight - 1,
-                                  val,
-                                  opened_valves.clone.append(next_node.name),
-                                  graph,
-                                  go_sloncek
-                                 )
-
-      # if go_sloncek
-      #   slo = find_most_pressure(graph["AA"], 26, val, opened_valves.clone.append(next_node.name), graph, false)
-      #   opened = slo if slo && slo > opened
-      # end
-    end
-
-    # leave closed cur valve path
-    if remaining_minutes - weight >= 0
-      closed = find_most_pressure(next_node, remaining_minutes - weight, cur_released, opened_valves, graph, go_sloncek)
-    end
-
-    max = opened if opened && opened > max
-    max = closed if closed && closed > max
-  end
-
-  cache_id = params_to_s(cur_node, remaining_minutes, cur_released, opened_valves)
-  $cache[cache_id] = max
-  max
-end
-
-# res = find_most_pressure(start, 30, 0, [], important, true)
-
-valves_to_open = important.select { |k, v| v.flow_rate > 0 }.keys
+# only those with flow > 0 can be opened
+valves_to_open = important.select { |_, v| v.flow_rate > 0 }.keys
 
 queue = [{ name: start.name, opened: [], cur_released: 0, remaining_minutes: 26 }]
-binding.irb
+
 visited = {}
 
 while queue.any?
   elem = queue.shift
 
+  # basically a set operation, checks which nodes were not opened yet
   (valves_to_open - elem[:opened]).each do |next_node|
     weight = important[elem[:name]].important_neighbours[next_node]
 
@@ -124,7 +73,7 @@ while queue.any?
     next if remaining_minutes < 0
 
     next_pressure = elem[:cur_released] + important[next_node].flow_rate * remaining_minutes
-    opened_valves = elem[:opened].clone.append(next_node) #.sort
+    opened_valves = elem[:opened].clone.append(next_node)
 
     key = "#{next_node}::#{opened_valves.join(",")}"
     next if visited[key] && visited[key] > next_pressure
@@ -135,20 +84,20 @@ while queue.any?
 end
 
 uniq = {}
+# get biggest possible score per opened valves at the end
 visited.each do |k, v|
   opened = k.split("::")[1].split(",").sort
-
   next if uniq[opened] && v < uniq[opened]
 
   uniq[opened] = v
 end
 
+# now we have all biggest scores per unique opened_valves |score, set_opened_valves|
+# we can now parse them two times, basically checking just options that dont overlap (empty union)
+# overlapping would mean you and the elephant both opened and scored on the same valve, which is not okay
 max = 0
 uniq.each do |you_opened, cur_released|
   uniq.each do |sloncek_opened, sloncek_released|
-    # It would be more efficient to represent the opened valves
-    # as a bit set so the AND/& operation would be very cheap
-    #
     if you_opened & sloncek_opened  == []
       tmp = cur_released + sloncek_released
 
@@ -157,4 +106,4 @@ uniq.each do |you_opened, cur_released|
   end
 end
 
-puts res
+puts max
